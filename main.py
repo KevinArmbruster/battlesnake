@@ -1,26 +1,14 @@
-# Welcome to
-# __________         __    __  .__                               __
-# \______   \_____ _/  |__/  |_|  |   ____   ______ ____ _____  |  | __ ____
-#  |    |  _/\__  \\   __\   __\  | _/ __ \ /  ___//    \\__  \ |  |/ // __ \
-#  |    |   \ / __ \|  |  |  | |  |_\  ___/ \___ \|   |  \/ __ \|    <\  ___/
-#  |________/(______/__|  |__| |____/\_____>______>___|__(______/__|__\\_____>
-#
-# This file can be a nice home for your Battlesnake logic and helper functions.
-#
-# To get you started we've included code to prevent your Battlesnake from moving backwards.
-# For more info see docs.battlesnake.com
-
 import random
 import typing
-import numpy as np
-from pathfinding.core.diagonal_movement import DiagonalMovement
-from pathfinding.core.grid import Grid
-from pathfinding.finder.a_star import AStarFinder
+from snake_basic_behaviors import *
+from snake_strategy_behaviors import *
 
 
-# info is called when you create your Battlesnake on play.battlesnake.com
-# and controls your Battlesnake's appearance
-# TIP: If you open your Battlesnake URL in a browser you should see this data
+# ----------------------------------------------------------------------------
+# SERVER STUFF
+# -----------------------------------------------------------------------------
+
+
 def info() -> typing.Dict:
     print("INFO")
 
@@ -47,63 +35,89 @@ def end(game_state: typing.Dict):
 # Valid moves are "up", "down", "left", or "right"
 # See https://docs.battlesnake.com/api/example-move for available data
 def move(game_state: typing.Dict) -> typing.Dict:
+    # state = game_state
+    is_move_safe = {
+        "up": DEFAULT_MOVE_VALUE,
+        "down": DEFAULT_MOVE_VALUE,
+        "left": DEFAULT_MOVE_VALUE,
+        "right": DEFAULT_MOVE_VALUE
+    }
 
-    board_state = build_matrix(game_state)
+    # We've included code to prevent your Battlesnake from moving backwards
+    preventBack(game_state, is_move_safe)
 
-    my_head = game_state["you"]["head"]
-    matrix = -np.clip(board_state-2, -1, 0)
-    # matrix[my_head["y"], my_head["x"]] = 2
-    grid = Grid(matrix=matrix)
+    # Prevent your Battlesnake from moving out of bounds (Timothy)
+    outOfBounds(game_state, is_move_safe)
 
-    start_pos = grid.node(**my_head)
-    end_pos = grid.node(**game_state["board"]["food"][0])
+    # Prevent your Battlesnake from colliding with itself
+    selfCollision(game_state, is_move_safe)
 
-    finder = AStarFinder(diagonal_movement=DiagonalMovement.never)
-    path, runs = finder.find_path(start_pos, end_pos, grid)
+    # Prevent your Battlesnake from colliding with other Battlesnakes
+    collision(game_state, is_move_safe)
 
-    next_idx = path[1]
-    print(next_idx)
+    # Are there any safe moves left?
+    safe_moves = {}
+    available_moves = []
+    for move, isSafe in is_move_safe.items():
+        # print(f"Move:{move}, Value:{isSafe}")
+        if isSafe >= DEFAULT_MOVE_VALUE:
+            safe_moves[f"{move}"] = isSafe
+            available_moves.append(move)
 
-    action = next_move_to_string((start_pos.x, start_pos.y), next_idx)
-    print(action)
+    selected_move = miniMax_value(game_state, safe_moves)
 
-    return {"move": action}
+    print(game_state)
+    # print(safe_moves)
+    if (len(safe_moves) == 0 and selected_move is None):
+        board_copy = createBoardState(game_state)
+        print(
+            f"MOVE {game_state['turn']}: No safe moves detected! Moving down")
+        for row in board_copy["state_board"]:
+            format_row = " ".join(str(el).rjust(2, ' ') for el in row)
+            print(format_row)
+        return {"move": "down"}
 
+    # TODO: Step 4 - Move towards food instead of random, to regain health and survive longer
+    # findFood(game_state, safe_moves)
 
-def next_move_to_string(current_idx, next_idx):
-    actions = {"left": (-1, 0), "right": (1, 0), "up": (0, 1), "down": (0, -1)}
+    # best_value = max([value for _, value in safe_moves.items()])
+    # best_move = [move for move, value in safe_moves.items()
+    #              if value == best_value]
 
-    for key in actions:
-        coord = tuple(sum(x) for x in zip(current_idx, actions[key]))
-        if coord == next_idx:
-            return key
+    # Choose a random move from the best ones
+    best_move = [move for move, value in safe_moves.items()]
 
-
-def build_matrix(game_state):
-    FOOD = 1
-    SNAKE = 10
-
-    board = game_state["board"]
-
-    board_state = np.zeros((board["height"], board["width"]))
-
-    # maybe be smarter about setting numbers, check id / name / shout / squad
-    for snake in board["snakes"]:
-        for body in snake["body"]:
-            board_state[body["y"], body["x"]] = SNAKE
-        board_state[snake["head"]["y"], snake["head"]["x"]] = SNAKE + 1
-
-        SNAKE += 10
-
-    for food in board["food"]:
-        board_state[food["y"], food["x"]] = FOOD
-
-    # currently disregard hazards
-    return board_state
+    if (selected_move is None):
+        if (len(safe_moves) > 0):
+            next_move = random.choice(best_move)
+    else:
+        next_move = selected_move
+    print(
+        f"MOVE {game_state['turn']}: {next_move}, SNAKE HEALTH: {game_state['you']['health']}")
+    return {"move": next_move}
 
 
 # Start server when `python main.py` is run
 if __name__ == "__main__":
     from server import run_server
 
-    run_server({"info": info, "start": start, "move": move, "end": end})
+    run_server({
+        "info": info,
+        "start": start,
+        "move": move,
+        "end": end
+    })
+
+# TODO:
+# Runs out of health
+# Not aggressive when it is bigger
+# does not try to edge kill
+# does not create loops when in danger
+
+
+# TODO multi snake:
+# Prevent the snake going in between snakes
+# Snake go into circle if surrounded by bigger snakes
+# snake does not go to spaces that it cannot come out of
+# Weak against snakes that come down from center and edge choke our snake
+# Edge kill from more than just border
