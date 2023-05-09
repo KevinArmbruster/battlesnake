@@ -12,6 +12,10 @@
 
 import random
 import typing
+import numpy as np
+from pathfinding.core.diagonal_movement import DiagonalMovement
+from pathfinding.core.grid import Grid
+from pathfinding.finder.a_star import AStarFinder
 
 
 # info is called when you create your Battlesnake on play.battlesnake.com
@@ -22,10 +26,10 @@ def info() -> typing.Dict:
 
     return {
         "apiversion": "1",
-        "author": "",  # TODO: Your Battlesnake Username
-        "color": "#888888",  # TODO: Choose color
-        "head": "default",  # TODO: Choose head
-        "tail": "default",  # TODO: Choose tail
+        "author": "Lenička & Kevička",
+        "color": "#888888",
+        "head": "default",
+        "tail": "default",
     }
 
 
@@ -44,52 +48,58 @@ def end(game_state: typing.Dict):
 # See https://docs.battlesnake.com/api/example-move for available data
 def move(game_state: typing.Dict) -> typing.Dict:
 
-    is_move_safe = {"up": True, "down": True, "left": True, "right": True}
+    board_state = build_matrix(game_state)
 
-    # We've included code to prevent your Battlesnake from moving backwards
-    my_head = game_state["you"]["body"][0]  # Coordinates of your head
-    my_neck = game_state["you"]["body"][1]  # Coordinates of your "neck"
+    my_head = game_state["you"]["head"]
+    matrix = -np.clip(board_state-2, -1, 0)
+    # matrix[my_head["y"], my_head["x"]] = 2
+    grid = Grid(matrix=matrix)
 
-    if my_neck["x"] < my_head["x"]:  # Neck is left of head, don't move left
-        is_move_safe["left"] = False
+    start_pos = grid.node(**my_head)
+    end_pos = grid.node(**game_state["board"]["food"][0])
 
-    elif my_neck["x"] > my_head["x"]:  # Neck is right of head, don't move right
-        is_move_safe["right"] = False
+    finder = AStarFinder(diagonal_movement=DiagonalMovement.never)
+    path, runs = finder.find_path(start_pos, end_pos, grid)
 
-    elif my_neck["y"] < my_head["y"]:  # Neck is below head, don't move down
-        is_move_safe["down"] = False
+    next_idx = path[1]
+    print(next_idx)
 
-    elif my_neck["y"] > my_head["y"]:  # Neck is above head, don't move up
-        is_move_safe["up"] = False
+    action = next_move_to_string((start_pos.x, start_pos.y), next_idx)
+    print(action)
 
-    # TODO: Step 1 - Prevent your Battlesnake from moving out of bounds
-    # board_width = game_state['board']['width']
-    # board_height = game_state['board']['height']
+    return {"move": action}
 
-    # TODO: Step 2 - Prevent your Battlesnake from colliding with itself
-    # my_body = game_state['you']['body']
 
-    # TODO: Step 3 - Prevent your Battlesnake from colliding with other Battlesnakes
-    # opponents = game_state['board']['snakes']
+def next_move_to_string(current_idx, next_idx):
+    actions = {"left": (-1, 0), "right": (1, 0), "up": (0, 1), "down": (0, -1)}
 
-    # Are there any safe moves left?
-    safe_moves = []
-    for move, isSafe in is_move_safe.items():
-        if isSafe:
-            safe_moves.append(move)
+    for key in actions:
+        coord = tuple(sum(x) for x in zip(current_idx, actions[key]))
+        if coord == next_idx:
+            return key
 
-    if len(safe_moves) == 0:
-        print(f"MOVE {game_state['turn']}: No safe moves detected! Moving down")
-        return {"move": "down"}
 
-    # Choose a random move from the safe ones
-    next_move = random.choice(safe_moves)
+def build_matrix(game_state):
+    FOOD = 1
+    SNAKE = 10
 
-    # TODO: Step 4 - Move towards food instead of random, to regain health and survive longer
-    # food = game_state['board']['food']
+    board = game_state["board"]
 
-    print(f"MOVE {game_state['turn']}: {next_move}")
-    return {"move": next_move}
+    board_state = np.zeros((board["height"], board["width"]))
+
+    # maybe be smarter about setting numbers, check id / name / shout / squad
+    for snake in board["snakes"]:
+        for body in snake["body"]:
+            board_state[body["y"], body["x"]] = SNAKE
+        board_state[snake["head"]["y"], snake["head"]["x"]] = SNAKE + 1
+
+        SNAKE += 10
+
+    for food in board["food"]:
+        board_state[food["y"], food["x"]] = FOOD
+
+    # currently disregard hazards
+    return board_state
 
 
 # Start server when `python main.py` is run
