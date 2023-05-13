@@ -49,9 +49,8 @@ def outOfBounds(game_state, is_move_safe):
     if my_head["y"] <= 0:
         is_move_safe["down"] += MIN_MOVE_VALUE
 
+
 # Prevents the snake from running into itself
-
-
 def selfCollision(game_state, is_move_safe):
     my_body = game_state["you"]["body"]
     my_head = game_state["you"]["body"][0]

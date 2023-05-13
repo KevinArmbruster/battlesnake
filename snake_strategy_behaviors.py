@@ -21,8 +21,7 @@ def createBoardState(game_state):
     # snake head is represented in head_board as the corresponding snake id
 
     board_copy = [[0 for _ in range(board_width)] for _ in range(board_height)]
-    head_board = [["0" for _ in range(board_width)]
-                  for _ in range(board_height)]
+    head_board = [["0" for _ in range(board_width)] for _ in range(board_height)]
 
     for food in foods:
         food_x = food["x"]
@@ -788,8 +787,7 @@ def miniMax(game_state, depth, curr_snake_id, main_snake_id, previous_snake_id, 
             break
 
     # Select the next snake id inside the snake array
-    next_snake_id = game_state["snakes"][(
-                                                 curr_index + 1) % len(game_state["snakes"])]["id"]
+    next_snake_id = game_state["snakes"][(curr_index + 1) % len(game_state["snakes"])]["id"]
 
     moves = ["up", "down", "right", "left"]
 

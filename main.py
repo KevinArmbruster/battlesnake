@@ -70,8 +70,7 @@ def move(game_state: typing.Dict) -> typing.Dict:
     # print(safe_moves)
     if (len(safe_moves) == 0 and selected_move is None):
         board_copy = createBoardState(game_state)
-        print(
-            f"MOVE {game_state['turn']}: No safe moves detected! Moving down")
+        print(f"MOVE {game_state['turn']}: No safe moves detected! Moving down")
         for row in board_copy["state_board"]:
             format_row = " ".join(str(el).rjust(2, ' ') for el in row)
             print(format_row)
@@ -92,8 +91,8 @@ def move(game_state: typing.Dict) -> typing.Dict:
             next_move = random.choice(best_move)
     else:
         next_move = selected_move
-    print(
-        f"MOVE {game_state['turn']}: {next_move}, SNAKE HEALTH: {game_state['you']['health']}")
+
+    print(f"MOVE {game_state['turn']}: {next_move}, SNAKE HEALTH: {game_state['you']['health']}")
     return {"move": next_move}
 
 
