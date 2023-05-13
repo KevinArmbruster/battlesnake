@@ -1,1 +1,6 @@
 Flask==2.3.2
+numpy<1.23.0
+mxnet
+array2gif
+gym
+pandas

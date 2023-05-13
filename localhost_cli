@@ -1,0 +1,9 @@
+battlesnake play --width 11 --height 11 --name Snake1 --url http://snake1-url-whatever --name Snake2 --url http://snake2-url-whatever
+
+battlesnake_1.2.3_Linux_x86_64/battlesnake play -W 11 -H 11 --name 'Python Starter Project' --url http://localhost:8000 -g solo --browser
+
+
+battlesnake play -W 11 -H 11 --name Snake1 --url http://localhost:8000 --name Snake2 ---url http://localhost:8000 -g --browser
+
+
+gui/battlesnake play -W 11 -H 11 --name Snake1 --url http://localhost:8000 --name Snake2 --url http://localhost:8000 -g --browser
