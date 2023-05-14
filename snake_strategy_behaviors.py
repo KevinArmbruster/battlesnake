@@ -1,6 +1,9 @@
 import copy
 from collections import deque
-
+import numpy as np
+from pathfinding.core.diagonal_movement import DiagonalMovement
+from pathfinding.core.grid import Grid as AStarGrid
+from pathfinding.finder.a_star import AStarFinder
 
 # ----------------------------------------------------------------------------
 # SNAKE STRATEGY BEHAVIOR
@@ -491,8 +494,7 @@ def snakeInfoLoop(game_state, curr_snake_id, board_width, board_height):
     return curr_snake_head, curr_snake_body, curr_snake_tail, curr_snake_size, curr_snake_health, biggest_size, other_edge_snakes
 
 
-# TODO Astar distance instead of Manhattan distance
-def closestFoodDistance(board_state, width, height, head_x, head_y):
+def closestFoodDistanceManhattan(board_state, width, height, head_x, head_y):
     closest_food = float("inf")
 
     for y in range(height):
@@ -500,6 +502,40 @@ def closestFoodDistance(board_state, width, height, head_x, head_y):
             if board_state[y][x] == 1:
                 food_distance = abs(
                     head_x - x) + abs(head_y - y)
+                closest_food = min(food_distance, closest_food)
+
+    return closest_food
+
+
+# TODO Astar distance instead of Manhattan distance
+def closestFoodDistanceAstar(board_state, width, height, head_x, head_y):  # TODO FIX THIS
+    closest_food = float("inf")
+
+    # convert board state to grid
+    grid1 = np.zeros((height, width))
+    foods = []
+    for y in range(height):
+        for x in range(width):
+            if board_state[y][x] in [BOARD_EMPTY]:
+                grid1[y, x] = 1
+
+            if board_state[y][x] == BOARD_FOOD:
+                foods.append((x, y))
+
+    grid = AStarGrid(matrix=grid1)
+
+    start_pos = grid.node(x=head_x, y=head_y)
+
+    for food in foods:
+        end_pos = grid.node(**food)
+
+    finder = AStarFinder(diagonal_movement=DiagonalMovement.never)
+    path, runs = finder.find_path(start_pos, end_pos, grid)
+
+    for y in range(height):
+        for x in range(width):
+            if board_state[y][x] == 1:
+                food_distance = abs(head_x - x) + abs(head_y - y)
                 closest_food = min(food_distance, closest_food)
 
     return closest_food
@@ -708,8 +744,7 @@ def evaluateCurrentGameState(game_state, depth, main_snake_id, curr_snake_id, cu
     head_y = curr_snake_head["y"]
 
     # Closest distance to food, add weight scaling depending on how close is curr snake to food
-    closest_food_distance = closestFoodDistance(
-        board_state, board_width, board_height, head_x, head_y)
+    closest_food_distance = closestFoodDistanceManhattan(board_state, board_width, board_height, head_x, head_y)
     curr_weight += food_weight / (closest_food_distance + 1)
 
     # Prevent us from being edge killed
@@ -755,7 +790,7 @@ def miniMax(game_state, depth, curr_snake_id, main_snake_id, previous_snake_id, 
 
     # If given game_state reached an end or depth has reached zero, return game_state score
     if depth == 0 or isGameOver(game_state, previous_snake_id):
-        return evaluateCurrentGameState(game_state, depth, main_snake_id, previous_snake_id, current_turn)
+        return evaluateCurrentGameState(game_state, depth, main_snake_id, previous_snake_id, current_turn), None
 
     # get the id of the next snake that we're gonna minimax
     curr_index = 0
