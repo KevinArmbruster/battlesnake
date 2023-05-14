@@ -1,1 +1,7 @@
 Flask==2.3.2
+stable-baselines3
+bottle==0.12.18
+numpy
+requests==2.20.0
+pygame
+jaraco.windows
