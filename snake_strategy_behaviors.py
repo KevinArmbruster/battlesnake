@@ -89,6 +89,7 @@ def createGameState(game_state, curr_snake_id):
     game_state_copy["board"] = createBoardState(game_state)
     game_state_copy["snakes"] = snakeState(game_state)
     game_state_copy["curr_snake_id"] = curr_snake_id
+    # game_state_copy["partner_snake_id"] = curr_snake_id  # TODO fill
 
     return game_state_copy
 
