@@ -66,8 +66,9 @@ def move(game_state: typing.Dict) -> typing.Dict:
 
     selected_move = miniMax_value(game_state, safe_moves)
 
-    print(game_state)
+    # print(game_state)
     # print(safe_moves)
+
     if (len(safe_moves) == 0 and selected_move is None):
         board_copy = createBoardState(game_state)
         print(f"MOVE {game_state['turn']}: No safe moves detected! Moving down")
