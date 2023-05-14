@@ -94,7 +94,8 @@ def move(game_state: typing.Dict) -> typing.Dict:
         next_move = selected_move
 
     print(f"MOVE {game_state['turn']}: {next_move}, SNAKE HEALTH: {game_state['you']['health']}")
-    return {"move": next_move}
+    print(f"Shout = {game_state['you']['shout']}")
+    return {"move": next_move, "shout": f"{game_state['you']['id']}"}
 
 
 # Start server when `python main.py` is run
