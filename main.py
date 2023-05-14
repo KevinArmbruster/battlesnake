@@ -27,9 +27,9 @@ def info() -> typing.Dict:
     return {
         "apiversion": "1",
         "author": "Lenička & Kevička",
-        "color": "#888888",
-        "head": "default",
-        "tail": "default",
+        "color": "#00FFFF",
+        "head": "do-sammy",
+        "tail": "coffee",
     }
 
 
