@@ -1,0 +1,1 @@
+/usr/bin/c++ -fPIC -DVERSION_INFO=\"0.0.1\" -O3 -DNDEBUG -shared -Wl,-soname,libgymbattlesnake.so -o ../../gym_battlesnake/libgymbattlesnake.so CMakeFiles/gymbattlesnake.dir/gym_battlesnake/src/gameinstance.cpp.o CMakeFiles/gymbattlesnake.dir/gym_battlesnake/src/gamewrapper.cpp.o CMakeFiles/gymbattlesnake.dir/gym_battlesnake/src/threadpool.cpp.o 
