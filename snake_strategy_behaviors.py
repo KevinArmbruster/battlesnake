@@ -689,9 +689,9 @@ def evaluateCurrentGameState(game_state, depth, main_snake_id, curr_snake_id, cu
     snake_size_weight = 15
     more_turn_weight = 20
 
-    LOW_HEALTH = 40
+    LOW_HEALTH = 20
     low_health_penalty = -60
-    DANGER_HEALTH = 20
+    DANGER_HEALTH = 10
     danger_health_penalty = -120
 
     # If the game state given somehow does not exist
