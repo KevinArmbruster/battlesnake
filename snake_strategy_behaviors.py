@@ -684,14 +684,14 @@ def evaluateCurrentGameState(game_state, depth, main_snake_id, curr_snake_id, cu
     available_space_weight = 0.5
     outer_bound_weight = -12
     center_control_weight = 5
-    head_kill_weight = 0
+    head_kill_weight = 50
     food_weight = 25
     snake_size_weight = 15
     more_turn_weight = 20
 
-    LOW_HEALTH = 20
+    LOW_HEALTH = 35
     low_health_penalty = -60
-    DANGER_HEALTH = 10
+    DANGER_HEALTH = 20
     danger_health_penalty = -120
 
     # If the game state given somehow does not exist
@@ -751,9 +751,32 @@ def evaluateCurrentGameState(game_state, depth, main_snake_id, curr_snake_id, cu
     # Prevent us from being edge killed
     curr_weight += edgeKillDanger(board_state, board_width, board_height, head_x, head_y, main_snake_id)
 
+    # Add the edge kill weight
+    edge_kill_weight = edgeKillValue(board_state, board_width, board_height, head_x, head_y, other_edge_snakes, main_snake_id)
+    if edge_kill_weight > 0:
+        outer_bound_weight = 0
+    curr_weight += edge_kill_weight
+
     # Add weight if snake is on edge of board
     if isOnEdge(head_x, head_y, board_width, board_height):
         curr_weight += outer_bound_weight
+
+    # Add weight if snake is in center of board
+    if head_x in [4, 5, 6] and len(game_state["snakes"]) < 3:
+        curr_weight += center_control_weight
+
+    smallest_snake_distance, head_collision_value = headCollisionInfo(
+        game_state, head_x, head_y, curr_snake_size, curr_snake_id, main_snake_id)
+
+    if curr_snake_size - biggest_size > 0:
+        curr_size_diff = curr_snake_size - biggest_size
+        if curr_size_diff > 6:
+            curr_size_diff = 6
+    else:
+        curr_size_diff = 1
+
+    curr_weight += head_collision_value
+    curr_weight += (head_kill_weight * curr_size_diff) / (smallest_snake_distance + 1)
 
     curr_weight += current_turn * more_turn_weight
 
