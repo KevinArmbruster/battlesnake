@@ -61,7 +61,7 @@ def move(game_state: typing.Dict) -> typing.Dict:
                 available_moves.append(move)
 
         if len(safe_moves) > 0:
-            next_move = random.choice(safe_moves)
+            next_move = random.choice(list(safe_moves.keys()))
 
         else:
             next_move = "down"

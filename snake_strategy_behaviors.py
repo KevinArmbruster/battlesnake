@@ -97,6 +97,7 @@ def createGameState(game_state, main_snake_id):
     game_state_copy["turn"] = game_state["turn"]
     game_state_copy["board"] = createBoardState(game_state)
     game_state_copy["snakes"] = snakeState(game_state, main_snake_id, getPartnerSnakeIds(game_state_copy, main_snake_id))
+    game_state_copy["hazards"] = game_state["board"]["hazards"]
 
     return game_state_copy
 
@@ -135,10 +136,12 @@ def updateSnakeBodyCoords(new_snake_state, curr_snake_index, body_index, x_coord
     new_snake_state[curr_snake_index]["body"][body_index]["y"] = y_coord
 
 
-def updateSnakeHealth(new_snake_state, curr_snake_index, isAlive, hasAte):
-    if (hasAte):
+def updateSnakeHealth(new_snake_state, curr_snake_index, isAlive, hasAte, isHazard):
+    if hasAte:
         new_snake_state[curr_snake_index]["health"] = 100  # FULL
-    elif (isAlive):
+    elif isHazard:
+        new_snake_state[curr_snake_index]["health"] -= 16   # 15 hazard + 1 step
+    elif isAlive:
         new_snake_state[curr_snake_index]["health"] -= 1  # STEP
     else:
         new_snake_state[curr_snake_index]["health"] = 0  # DEAD
@@ -264,7 +267,16 @@ def updateHeadCoord(x, y, move):
     return x, y
 
 
-# Creates a new version of game state with the move and the correspondent snake
+def isHazardCell(hazards, check_y, check_x):
+    if hazards is None:
+        return False
+
+    for x, y in hazards:
+        if x == check_x and y == check_y:
+            return True
+    return False
+
+
 def makeMove(game_state, curr_snake_id, move):
     board_width = len(game_state["board"]["state_board"][0])
     board_height = len(game_state["board"]["state_board"])
@@ -320,7 +332,8 @@ def makeMove(game_state, curr_snake_id, move):
                 moveForward(new_board_state, new_head_state, new_snake_state,
                             curr_snake_id, curr_snake_index, curr_snake_body, head_x, head_y, False)
 
-                curr_health = updateSnakeHealth(new_snake_state, curr_snake_index, True, False)
+                isHazard = isHazardCell(game_state["hazards"], head_y, head_x)
+                curr_health = updateSnakeHealth(new_snake_state, curr_snake_index, True, False, isHazard)
 
                 if curr_health <= 0:
                     removeKilledSnake(new_board_state, new_head_state, new_snake_state, curr_snake_index)
@@ -344,13 +357,13 @@ def makeMove(game_state, curr_snake_id, move):
                     moveForward(new_board_state, new_head_state, new_snake_state,
                                 curr_snake_id, curr_snake_index, curr_snake_body, head_x, head_y, True)
 
-                    curr_health = updateSnakeHealth(new_snake_state, curr_snake_index, True, False)
+                    isHazard = isHazardCell(game_state["hazards"], head_y, head_x)
+                    curr_health = updateSnakeHealth(new_snake_state, curr_snake_index, True, False, isHazard)
 
                     if curr_health <= 0:
                         removeKilledSnake(new_board_state, new_head_state, new_snake_state, curr_snake_index)
                 else:
-                    removeKilledSnake(new_board_state, new_head_state,
-                                      new_snake_state, curr_snake_index)
+                    removeKilledSnake(new_board_state, new_head_state, new_snake_state, curr_snake_index)
 
             else:
                 removeKilledSnake(new_board_state, new_head_state, new_snake_state, curr_snake_index)
@@ -382,7 +395,7 @@ def makeMove(game_state, curr_snake_id, move):
         moveForward(new_board_state, new_head_state, new_snake_state,
                     curr_snake_id, curr_snake_index, curr_snake_body, head_x, head_y, False)
 
-        updateSnakeHealth(new_snake_state, curr_snake_index, True, True)
+        updateSnakeHealth(new_snake_state, curr_snake_index, True, False, False)
 
         snakeStateFoodGrow(new_snake_state, curr_snake_index)
 
@@ -392,7 +405,8 @@ def makeMove(game_state, curr_snake_id, move):
         moveForward(new_board_state, new_head_state, new_snake_state, curr_snake_id, curr_snake_index, curr_snake_body,
                     head_x, head_y, False)
 
-        curr_health = updateSnakeHealth(new_snake_state, curr_snake_index, True, False)
+        isHazard = isHazardCell(game_state["hazards"], head_y, head_x)
+        curr_health = updateSnakeHealth(new_snake_state, curr_snake_index, True, False, isHazard)
 
         if curr_health <= 0:
             removeKilledSnake(new_board_state, new_head_state, new_snake_state, curr_snake_index)
@@ -699,6 +713,7 @@ def evaluateCurrentGameState(game_state, depth, main_snake_id, curr_snake_id, cu
     food_weight = 25
     snake_size_weight = 15
     more_turn_weight = 20
+    hazard_weight = -30
 
     LOW_HEALTH = 35
     low_health_penalty = -60
@@ -757,6 +772,9 @@ def evaluateCurrentGameState(game_state, depth, main_snake_id, curr_snake_id, cu
     # Current snake head coordinates
     head_x = curr_snake_head["x"]
     head_y = curr_snake_head["y"]
+
+    if isHazardCell(game_state["hazards"], head_y, head_x):
+        curr_weight += hazard_weight
 
     # Closest distance to food, add weight scaling depending on how close is curr snake to food
     closest_food_distance = closestFoodDistanceManhattan(board_state, board_width, board_height, head_x, head_y)
