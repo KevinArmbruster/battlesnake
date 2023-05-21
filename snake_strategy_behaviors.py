@@ -700,6 +700,10 @@ def headCollisionInfo(game_state, head_x, head_y, curr_snake_size, curr_snake_id
     return smallest_snake_distance, curr_head_losing_weight
 
 
+def checkIfMaxStep(game_state, main_snake_id, curr_snake_id):
+    return curr_snake_id == main_snake_id or curr_snake_id in getPartnerSnakeIds(game_state, main_snake_id)
+
+
 def evaluateCurrentGameState(game_state, depth, main_snake_id, curr_snake_id, current_turn):
     curr_weight = 0
 
@@ -722,21 +726,21 @@ def evaluateCurrentGameState(game_state, depth, main_snake_id, curr_snake_id, cu
 
     # If the game state given somehow does not exist
     if game_state is None:
-        if curr_snake_id == main_snake_id:
-            return float("-inf")
-        else:
-            return float("inf")
+        print(f"Game state is None")
+        raise "WTF"
 
-    if isSnakeDead(game_state, main_snake_id):
-        return own_death_weight
+    multiplier = 1 if checkIfMaxStep(game_state, main_snake_id, curr_snake_id) else -1
+
+    if isSnakeDead(game_state, curr_snake_id):
+        return multiplier * own_death_weight
 
     for partner_snake_id in getPartnerSnakeIds(game_state, main_snake_id):
         if isSnakeDead(game_state, partner_snake_id):
-            return partner_death_weight
+            return multiplier * partner_death_weight
 
     # Check if the current snake has died (not main snake)
     if curr_snake_id != main_snake_id and isSnakeDead(game_state, curr_snake_id):
-        return opponent_death_weight
+        return multiplier * opponent_death_weight
 
     board_state = game_state["board"]["state_board"]
     board_width = len(board_state[0])
@@ -814,10 +818,7 @@ def evaluateCurrentGameState(game_state, depth, main_snake_id, curr_snake_id, cu
     curr_weight += current_turn * more_turn_weight
 
     # curr_weight *= depth_discount_factor * depth
-    if curr_snake_id == main_snake_id or curr_snake_id in getPartnerSnakeIds(game_state, main_snake_id):
-        return curr_weight
-    else:
-        return curr_weight * -1
+    return multiplier * curr_weight
 
 
 def miniMax(game_state, depth, curr_snake_id, main_snake_id, previous_snake_id, alpha, beta, current_turn, start_time, time_limit):
@@ -912,7 +913,7 @@ def miniMaxEntry(game_state):
     start_time = time.time()
 
     result_value, best_move = miniMax(current_game_state, depth, main_snake_id, main_snake_id, None, float("-inf"),
-                                      float("inf"), game_state["turn"], start_time=start_time, time_limit=0.15)
+                                      float("inf"), game_state["turn"], start_time=start_time, time_limit=55.15)
 
     print(f"Minimax value: {result_value:.0f}, Best move: {best_move}, Used time {time.time() - start_time:.2f}s")
     return best_move
