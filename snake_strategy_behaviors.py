@@ -713,7 +713,7 @@ def evaluateCurrentGameState(game_state, depth, main_snake_id, curr_snake_id, cu
     food_weight = 25
     snake_size_weight = 15
     more_turn_weight = 20
-    hazard_weight = -30
+    hazard_weight = -300000
 
     LOW_HEALTH = 35
     low_health_penalty = -60
