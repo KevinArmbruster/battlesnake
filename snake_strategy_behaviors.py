@@ -3,6 +3,7 @@ from collections import deque, defaultdict
 import numpy as np
 import time
 from itertools import groupby
+from operator import itemgetter
 from pathfinding.core.diagonal_movement import DiagonalMovement
 from pathfinding.core.grid import Grid as AStarGrid
 from pathfinding.finder.a_star import AStarFinder
@@ -703,8 +704,8 @@ def headCollisionInfo(game_state, head_x, head_y, curr_snake_size, curr_snake_id
 def evaluateCurrentGameState(game_state, depth, main_snake_id, curr_snake_id, current_turn):
     curr_weight = 0
 
-    own_death_weight = float("-inf")
-    partner_death_weight = float("-inf")
+    own_death_weight = float("inf")
+    partner_death_weight = float("inf")
     opponent_death_weight = float("inf")
     available_space_weight = 0.5
     outer_bound_weight = -12
@@ -720,23 +721,20 @@ def evaluateCurrentGameState(game_state, depth, main_snake_id, curr_snake_id, cu
     DANGER_HEALTH = 20
     danger_health_penalty = -120
 
-    # If the game state given somehow does not exist
     if game_state is None:
-        if curr_snake_id == main_snake_id:
-            return float("-inf")
-        else:
-            return float("inf")
+        raise f"ERROR! Game State is NONE"
 
-    if isSnakeDead(game_state, main_snake_id):
-        return own_death_weight
+    multiplier = 1 if checkIfMaxStep(game_state, main_snake_id, curr_snake_id) else -1
 
-    for partner_snake_id in getPartnerSnakeIds(game_state, main_snake_id):
+    if isSnakeDead(game_state, curr_snake_id):
+        return multiplier * own_death_weight
+
+    for partner_snake_id in getPartnerSnakeIds(game_state, curr_snake_id):
         if isSnakeDead(game_state, partner_snake_id):
-            return partner_death_weight
+            return multiplier * partner_death_weight
 
-    # Check if the current snake has died (not main snake)
     if curr_snake_id != main_snake_id and isSnakeDead(game_state, curr_snake_id):
-        return opponent_death_weight
+        return multiplier * opponent_death_weight
 
     board_state = game_state["board"]["state_board"]
     board_width = len(board_state[0])
@@ -763,11 +761,11 @@ def evaluateCurrentGameState(game_state, depth, main_snake_id, curr_snake_id, cu
     curr_weight += available_space * available_space_weight
 
     if available_space < 2 and not is_tail_reachable:
-        return -10000
+        return multiplier * 10000
     elif available_space < curr_snake_size // 4 and not is_tail_reachable:
-        return -800
+        return multiplier * 800
     elif available_space < curr_snake_size // 1.5 and not is_tail_reachable:
-        return -400
+        return multiplier * 400
 
     # Current snake head coordinates
     head_x = curr_snake_head["x"]
@@ -814,18 +812,21 @@ def evaluateCurrentGameState(game_state, depth, main_snake_id, curr_snake_id, cu
     curr_weight += current_turn * more_turn_weight
 
     # curr_weight *= depth_discount_factor * depth
-    if curr_snake_id == main_snake_id or curr_snake_id in getPartnerSnakeIds(game_state, main_snake_id):
-        return curr_weight
-    else:
-        return curr_weight * -1
+    return multiplier * curr_weight
 
 
-def miniMax(game_state, depth, curr_snake_id, main_snake_id, previous_snake_id, alpha, beta, current_turn, start_time, time_limit):
+def miniMax(game_state, depth, curr_snake_id, main_snake_id, previous_snake_id, alpha, beta, current_turn, start_time, time_limit, parent):
 
-    if depth == 0 \
-            or isSnakeDead(game_state, previous_snake_id) \
-            or time.time() - start_time >= time_limit:
-        return evaluateCurrentGameState(game_state, depth, main_snake_id, previous_snake_id, current_turn), None
+    if time.time() - start_time >= time_limit:
+        raise f"Time limit exceeded"
+
+    if depth <= 0 \
+            or isSnakeDead(game_state, previous_snake_id):
+        if parent.value is None:
+            print(f"Evaluating state value...")
+            return evaluateCurrentGameState(game_state, depth, main_snake_id, previous_snake_id, current_turn), None
+        print(f"Loading tree value: {parent.value}")
+        return parent.value, None
 
     # get the id of the next snake that we're gonna minimax
     curr_index = 0
@@ -837,19 +838,24 @@ def miniMax(game_state, depth, curr_snake_id, main_snake_id, previous_snake_id, 
     # Select the next snake id inside the snake array
     next_snake_id = game_state["snakes"][(curr_index + 1) % len(game_state["snakes"])]["id"]
 
-    moves = ["up", "down", "right", "left"]
-
-    if curr_snake_id == main_snake_id or curr_snake_id in getPartnerSnakeIds(game_state, main_snake_id):  # max step
+    if parent.isMax:  # max step
         highest_value = float("-inf")
         best_move = None
 
-        for move in moves:
-            new_game_state = makeMove(game_state, curr_snake_id, move)
+        for move, child in parent.moveSuccessors.items():
+            if child is None:
+                child = parent.moveSuccessors[move] = Node(curr_snake_id, checkIfMaxStep(game_state, main_snake_id, next_snake_id))
 
-            turn = current_turn + 1 if curr_snake_id == main_snake_id else current_turn
+            new_game_state = makeMove(game_state, curr_snake_id, move)  # TODO maybe store copy
 
-            curr_val, _ = miniMax(new_game_state, depth - 1, next_snake_id, main_snake_id, curr_snake_id,
-                                  alpha, beta, turn, start_time, time_limit)
+            _turn = current_turn + 1 if curr_snake_id == main_snake_id else current_turn
+            _depth = depth - 1 if curr_snake_id == main_snake_id else depth
+
+            curr_val, _ = miniMax(new_game_state, _depth, next_snake_id, main_snake_id, curr_snake_id,
+                                  alpha, beta, _turn, start_time, time_limit, child)
+
+            if child.value is None:
+                child.value = curr_val
 
             if curr_val > beta:
                 # print(f"Prune")
@@ -869,11 +875,16 @@ def miniMax(game_state, depth, curr_snake_id, main_snake_id, previous_snake_id, 
         min_value = float("inf")
         best_move = None
 
-        for move in moves:
+        for move, child in parent.moveSuccessors.items():
+            if child is None:
+                child = parent.moveSuccessors[move] = Node(curr_snake_id, checkIfMaxStep(game_state, main_snake_id, next_snake_id))
+
             new_game_state = makeMove(game_state, curr_snake_id, move)
 
             curr_val, _ = miniMax(new_game_state, depth - 1, next_snake_id, main_snake_id, curr_snake_id,
-                                  alpha, beta, current_turn, start_time, time_limit)
+                                  alpha, beta, current_turn, start_time, time_limit, child)
+
+            child.value = curr_val
 
             if curr_val < alpha:
                 # print(f"Prune")
@@ -890,29 +901,61 @@ def miniMax(game_state, depth, curr_snake_id, main_snake_id, previous_snake_id, 
         return min_value, best_move
 
 
+def checkIfMaxStep(game_state, main_snake_id, curr_snake_id):
+    return curr_snake_id == main_snake_id or curr_snake_id in getPartnerSnakeIds(game_state, main_snake_id)
+
+
+class Node:
+    snakeId = None
+    isMax = True
+    value = None
+    bestSuccessorValue = None
+    bestSuccessorMove = None
+    moveSuccessors = {"up": None, "down": None, "left": None, "right": None}
+
+    def __init__(self, snakeId, isMax):
+        self.snakeId = snakeId
+        self.isMax = isMax
+
+    def evaluatedSuccessor(self, move, value, snakeId, isMax):
+        self.moveSuccessors[move] = Node(snakeId, isMax)
+
+        if self.isMax:
+            sortedSuccessors = sorted(self.moveSuccessors.items(), key=itemgetter(1), reverse=True)
+            if value > sortedSuccessors[0]:
+                self.bestSuccessorValue = value
+                self.bestSuccessorMove = move
+        else:
+            sortedSuccessors = sorted(self.moveSuccessors.items(), key=itemgetter(1), reverse=False)
+            if value < sortedSuccessors[0]:
+                self.bestSuccessorValue = value
+                self.bestSuccessorMove = move
+
+
 def miniMaxEntry(game_state):
     main_snake_id = game_state["you"]["id"]
 
     current_game_state = createGameState(game_state, main_snake_id)
 
-    # define search depth
-    snakes_num = len(game_state["board"]["snakes"])
+    root = Node(main_snake_id, True)
+    # frontier = deque([tree])
 
-    if snakes_num == 4:
-        depth = 5
-    elif snakes_num == 3:
-        depth = 5
-    elif snakes_num == 2:
-        depth = 5
-    else:
-        depth = 5
-
-    depth = 5
-
+    depth = 0
     start_time = time.time()
+    time_limit = 0.15
+    result_value, best_move = (None, None)
 
-    result_value, best_move = miniMax(current_game_state, depth, main_snake_id, main_snake_id, None, float("-inf"),
-                                      float("inf"), game_state["turn"], start_time=start_time, time_limit=0.15)
+    while time.time() - start_time <= time_limit:
+
+        depth += 1
+        print(f"Increasing depth to {depth}")
+
+        try:
+            result_value, best_move = miniMax(current_game_state, depth, main_snake_id, main_snake_id, None,
+                                              float("-inf"), float("inf"), game_state["turn"], start_time, time_limit,
+                                              root)
+        except:
+            print(f"Time Limit exceeded at depth {depth}. Using previous values.")
 
     print(f"Minimax value: {result_value:.0f}, Best move: {best_move}, Used time {time.time() - start_time:.2f}s")
     return best_move
