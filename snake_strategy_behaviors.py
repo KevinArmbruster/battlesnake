@@ -191,10 +191,10 @@ def removeKilledSnake(new_game_state, snake_index):
     new_head_state = new_game_state["board"]["head_board"]
     new_snake_state = new_game_state["snakes"]
 
+    new_game_state["deaths"].append(new_snake_state[snake_index]["id"])
+
     removeKilledSnakeBodyFromStateBoards(new_board_state, new_head_state, new_snake_state, snake_index)
     new_snake_state.pop(snake_index)
-
-    new_game_state["deaths"].append(new_snake_state[snake_index]["id"])
 
 
 def removeKilledSnakeBodyFromStateBoards(new_board_state, new_head_state, new_snake_state, snake_index):
