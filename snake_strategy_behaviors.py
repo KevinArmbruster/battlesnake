@@ -96,11 +96,21 @@ def createGameState(game_state, main_snake_id):
     game_state_copy["partners"] = buildPartnerDict(game_state["board"]["snakes"])
     game_state_copy["turn"] = game_state["turn"]
     game_state_copy["board"] = createBoardState(game_state)
-    game_state_copy["snakes"] = snakeState(game_state, main_snake_id, getPartnerSnakeIds(game_state_copy, main_snake_id))
-    game_state_copy["hazards"] = game_state["board"]["hazards"]
+    game_state_copy["snakes"] = snakeState(game_state, main_snake_id,
+                                           getPartnerSnakeIds(game_state_copy, main_snake_id))
+    game_state_copy["hazards"] = buildHazardHashmap(game_state)
     game_state_copy["deaths"] = []
 
     return game_state_copy
+
+
+def buildHazardHashmap(game_state):
+    hazard_map = defaultdict(lambda: False)
+    for hazard in game_state["board"]["hazards"]:
+        x = hazard["x"]
+        y = hazard["y"]
+        hazard_map[(x, y)] = True
+    return hazard_map
 
 
 def getPartnerSnakeIds(game_state, snake_id):
@@ -141,7 +151,7 @@ def updateSnakeHealth(new_snake_state, curr_snake_index, isAlive, hasAte, isHaza
     if hasAte:
         new_snake_state[curr_snake_index]["health"] = 100  # FULL
     elif isHazard:
-        new_snake_state[curr_snake_index]["health"] -= 16   # 15 hazard + 1 step
+        new_snake_state[curr_snake_index]["health"] -= 16  # 15 hazard + 1 step
     elif isAlive:
         new_snake_state[curr_snake_index]["health"] -= 1  # STEP
     else:
@@ -274,11 +284,8 @@ def isHazardCell(hazards, check_y, check_x):
     if hazards is None:
         return False
 
-    for d in hazards:
-        x = d["x"]
-        y = d["y"]
-        if x == check_x and y == check_y:
-            return True
+    if hazards[(check_x, check_y)]:
+        return True
     return False
 
 
@@ -480,10 +487,10 @@ def fill(visited, width, height, head_x, head_y, tail_x, tail_y):
 
 
 def isSnakeDead(game_state, snake_id):
-    if snake_id is None:    # previous snake is in first call None
+    if snake_id is None:  # previous snake is in first call None
         return False
 
-    if game_state is None:    # solo play, last snake dies
+    if game_state is None:  # solo play, last snake dies
         return True
 
     # snake is deleted from game state when it dies
@@ -797,8 +804,8 @@ def evaluateCurrentGameState(game_state, depth, main_snake_id, curr_snake_id, cu
     return multiplier * curr_weight
 
 
-def miniMax(game_state, depth, curr_snake_id, main_snake_id, previous_snake_id, alpha, beta, current_turn, start_time, time_limit):
-
+def miniMax(game_state, depth, curr_snake_id, main_snake_id, previous_snake_id, alpha, beta, current_turn, start_time,
+            time_limit):
     if depth == 0 \
             or isSnakeDead(game_state, previous_snake_id) \
             or time.time() - start_time >= time_limit:
