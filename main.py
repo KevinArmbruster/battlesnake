@@ -32,6 +32,7 @@ def end(game_state: typing.Dict):
 
 
 def move(game_state: typing.Dict) -> typing.Dict:
+    # start_time = time.time()
 
     minimax_move = miniMaxEntry(game_state)
 
@@ -67,6 +68,7 @@ def move(game_state: typing.Dict) -> typing.Dict:
             next_move = "down"
 
     print(f"MOVE {game_state['turn']}: {next_move}, SNAKE HEALTH: {game_state['you']['health']}")
+    # print(f"Total time {time.time() - start_time:.3f}s")
     return {"move": next_move}
 
 

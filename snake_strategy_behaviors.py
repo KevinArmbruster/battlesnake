@@ -266,7 +266,6 @@ def findHeadCoord(width, height, new_head_state, curr_snake_id):
     return head_x, head_y
 
 
-# Update head coordinate to its future head coordinate after move
 def updateHeadCoord(x, y, move):
     if (move == "up"):
         y = y - 1
@@ -806,10 +805,12 @@ def evaluateCurrentGameState(game_state, depth, main_snake_id, curr_snake_id, cu
 
 def miniMax(game_state, depth, curr_snake_id, main_snake_id, previous_snake_id, alpha, beta, current_turn, start_time,
             time_limit):
-    if depth == 0 \
-            or isSnakeDead(game_state, previous_snake_id) \
-            or time.time() - start_time >= time_limit:
-        return evaluateCurrentGameState(game_state, depth, main_snake_id, previous_snake_id, current_turn), None
+
+    if time.time() - start_time >= time_limit:
+        raise TimeLimitException("Time limit exceeded!")
+
+    if depth == 0 or isSnakeDead(game_state, previous_snake_id):
+        return evaluateCurrentGameState(game_state, depth, main_snake_id, previous_snake_id, current_turn), None, None
 
     # get the id of the next snake that we're gonna minimax
     curr_index = 0
@@ -822,6 +823,7 @@ def miniMax(game_state, depth, curr_snake_id, main_snake_id, previous_snake_id, 
     next_snake_id = game_state["snakes"][(curr_index + 1) % len(game_state["snakes"])]["id"]
 
     moves = ["up", "down", "right", "left"]
+    moveValues = {"up": None, "down": None, "right": None, "left": None}
 
     if isMaximizingPlayer(game_state, main_snake_id, curr_snake_id):  # max step
         highest_value = float("-inf")
@@ -835,8 +837,10 @@ def miniMax(game_state, depth, curr_snake_id, main_snake_id, previous_snake_id, 
             else:
                 turn = current_turn + 1 if curr_snake_id == main_snake_id else current_turn
 
-                eval, _ = miniMax(new_game_state, depth - 1, next_snake_id, main_snake_id, curr_snake_id,
+                eval, _, _ = miniMax(new_game_state, depth - 1, next_snake_id, main_snake_id, curr_snake_id,
                                   alpha, beta, turn, start_time, time_limit)
+
+            moveValues[move] = eval
 
             alpha = max(alpha, eval)
 
@@ -847,9 +851,9 @@ def miniMax(game_state, depth, curr_snake_id, main_snake_id, previous_snake_id, 
                 best_move = move
                 highest_value = eval
 
-            # print(f"Max Step: Depth: {depth}, move: {move}, New: {eval}, best_move: {best_move}, max: {highest_value}, alpha: {alpha}")
+        # print(f"Max Step: Depth: {depth}, Final move eval: {moveValues}")
 
-        return highest_value, best_move
+        return highest_value, best_move, moveValues
 
     else:  # min step
         min_value = float("inf")
@@ -862,8 +866,10 @@ def miniMax(game_state, depth, curr_snake_id, main_snake_id, previous_snake_id, 
                 eval = float("inf")
                 print("Min WTF")
             else:
-                eval, _ = miniMax(new_game_state, depth - 1, next_snake_id, main_snake_id, curr_snake_id,
+                eval, _, _ = miniMax(new_game_state, depth - 1, next_snake_id, main_snake_id, curr_snake_id,
                                   alpha, beta, current_turn, start_time, time_limit)
+
+            moveValues[move] = eval
 
             beta = min(beta, eval)
 
@@ -874,13 +880,17 @@ def miniMax(game_state, depth, curr_snake_id, main_snake_id, previous_snake_id, 
                 best_move = move
                 min_value = eval
 
-            # print(f"Min Step: Depth: {depth}, move: {move}, New: {eval}, best_move: {best_move}, min: {min_value}, beta: {beta}")
+        # print(f"Min Step: Depth: {depth}, Final move eval: {moveValues}")
 
-        return min_value, best_move
+        return min_value, best_move, moveValues
 
 
 def isMaximizingPlayer(game_state, main_snake_id, curr_snake_id):
     return curr_snake_id == main_snake_id or curr_snake_id in getPartnerSnakeIds(game_state, main_snake_id)
+
+
+class TimeLimitException(Exception):
+    pass
 
 
 def miniMaxEntry(game_state):
@@ -888,24 +898,23 @@ def miniMaxEntry(game_state):
 
     current_game_state = createGameState(game_state, main_snake_id)
 
-    # define search depth
-    snakes_num = len(game_state["board"]["snakes"])
-
-    if snakes_num == 4:
-        depth = 5
-    elif snakes_num == 3:
-        depth = 5
-    elif snakes_num == 2:
-        depth = 5
-    else:
-        depth = 5
-
-    depth = 4
-
+    depth = 1
     start_time = time.time()
+    time_limit = 0.15   # arbitrary value, but allowed response time is .5s and server actions take the rest (sadly)
+    result_value = None
+    best_move = None
+    moveValues = None
 
-    result_value, best_move = miniMax(current_game_state, depth, main_snake_id, main_snake_id, None, float("-inf"),
-                                      float("inf"), game_state["turn"], start_time=start_time, time_limit=0.30)
+    while time.time() - start_time <= time_limit:
+        depth += 1
+        try:
+            result_value, best_move, moveValues = miniMax(current_game_state, depth, main_snake_id, main_snake_id, None,
+                                                          float("-inf"), float("inf"), game_state["turn"],
+                                                          start_time=start_time, time_limit=time_limit)
+        except TimeLimitException as e:
+            # Cannot use aborted search
+            depth -= 1
 
-    print(f"Minimax value: {result_value:.0f}, Best move: {best_move}, Used time {time.time() - start_time:.2f}s")
+    print(f"Minimax:: Depth: {depth}, Value: {result_value:.0f}, Best move: {best_move}")
+    # print(moveValues)
     return best_move
