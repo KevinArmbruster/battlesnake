@@ -900,7 +900,7 @@ def miniMaxEntry(game_state):
 
     depth = 1
     start_time = time.time()
-    time_limit = 0.15   # arbitrary value, but allowed response time is .5s and server actions take the rest (sadly)
+    time_limit = 0.35   # arbitrary value, but allowed response time is .5s and server actions take the rest (sadly)
     result_value = None
     best_move = None
     moveValues = None
